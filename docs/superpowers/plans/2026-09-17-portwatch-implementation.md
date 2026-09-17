@@ -286,14 +286,14 @@ const CWD_FIXTURE = [
   'n/opt/homebrew/var/mysql',
   'p63452',
   'fcwd',
-  'n/Users/andybennett/Work/Kaiyou/Apps/claude-cli-bridge',
+  'n/Users/dev/projects/example-app',
 ].join('\n');
 
 test('parseLsofCwds maps pid to cwd path', () => {
   const result = parseLsofCwds(CWD_FIXTURE);
   assert.deepEqual(result, {
     2210: '/opt/homebrew/var/mysql',
-    63452: '/Users/andybennett/Work/Kaiyou/Apps/claude-cli-bridge',
+    63452: '/Users/dev/projects/example-app',
   });
 });
 
@@ -517,7 +517,7 @@ const PORTS_OUTPUT = [
 const CWD_OUTPUT = [
   'p63452',
   'fcwd',
-  'n/Users/andybennett/Work/Kaiyou/Apps/claude-cli-bridge',
+  'n/Users/dev/projects/example-app',
   // no entry for pid 99999: simulates it exiting between the port scan
   // and the cwd lookup
 ].join('\n');
@@ -547,7 +547,7 @@ test('collectServices joins port/cwd/uptime data by pid, filters, and sorts by p
       port: 8934,
       process: 'node',
       pid: 63452,
-      source: '/Users/andybennett/Work/Kaiyou/Apps/claude-cli-bridge',
+      source: '/Users/dev/projects/example-app',
       uptime: '01-01:01:21',
     },
   ]);

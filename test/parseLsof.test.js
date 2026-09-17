@@ -65,14 +65,14 @@ const CWD_FIXTURE = [
   'n/opt/homebrew/var/mysql',
   'p63452',
   'fcwd',
-  'n/Users/andybennett/Work/Kaiyou/Apps/claude-cli-bridge',
+  'n/Users/dev/projects/example-app',
 ].join('\n');
 
 test('parseLsofCwds maps pid to cwd path', () => {
   const result = parseLsofCwds(CWD_FIXTURE);
   assert.deepEqual(result, {
     2210: '/opt/homebrew/var/mysql',
-    63452: '/Users/andybennett/Work/Kaiyou/Apps/claude-cli-bridge',
+    63452: '/Users/dev/projects/example-app',
   });
 });
 
