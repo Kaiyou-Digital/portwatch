@@ -2,6 +2,7 @@ export function extractPort(address) {
   const idx = address.lastIndexOf(':');
   if (idx === -1) return null;
   const portStr = address.slice(idx + 1);
+  if (portStr.length === 0) return null;
   const port = Number(portStr);
   return Number.isInteger(port) ? port : null;
 }

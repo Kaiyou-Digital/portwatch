@@ -55,6 +55,10 @@ test('extractPort returns null for an address with no port', () => {
   assert.equal(extractPort('no-colon-here'), null);
 });
 
+test('extractPort returns null for a trailing colon with no port digits', () => {
+  assert.equal(extractPort('foo:'), null);
+});
+
 const CWD_FIXTURE = [
   'p2210',
   'fcwd',
