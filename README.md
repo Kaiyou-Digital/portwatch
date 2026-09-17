@@ -7,6 +7,11 @@ straight from the list.
 
 **Personal, single-machine tool.** No auth, no remote access.
 
+## Prerequisites
+
+- Node.js >= 22 (enforced via `package.json`'s `engines` field — Ink 7 requires it).
+- macOS only. portwatch parses `lsof`'s `-F` field-output format and `ps -o comm=` output shape as-is, rather than abstracting them for other platforms.
+
 ## Install
 
 ```bash
