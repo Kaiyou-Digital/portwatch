@@ -11,7 +11,12 @@ export async function defaultExec(command, args) {
     const { stdout } = await execFileAsync(command, args, { maxBuffer: 10 * 1024 * 1024 });
     return stdout;
   } catch (err) {
-    if (typeof err.stdout === 'string') return err.stdout;
+    // A non-zero exit (e.g. lsof/ps exiting 1 because a queried pid died
+    // mid-call) still gives usable partial stdout and a numeric err.code —
+    // recover it. A spawn failure (e.g. ENOENT: the binary isn't on PATH)
+    // also sets err.stdout to '', but gives a string err.code, so it must
+    // still throw for the error state in App.js to be reachable.
+    if (typeof err.code === 'number' && typeof err.stdout === 'string') return err.stdout;
     throw err;
   }
 }
