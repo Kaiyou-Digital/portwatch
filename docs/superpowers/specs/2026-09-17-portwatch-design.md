@@ -64,8 +64,10 @@ Three shell-outs, regardless of how many services are running:
 1. `lsof -iTCP -sTCP:LISTEN -P -n -F pcn` — every listening PID + port in one
    call. `-F` gives machine-readable field output (`parseLsof.js` parses it).
 2. Collect the unique PIDs from step 1, then one batched call:
-   `lsof -p <pid1,pid2,...> -a -d cwd -F n` — cwd for all of them together,
-   not one lsof call per process.
+   `lsof -p <pid1,pid2,...> -a -d cwd -F pn` — cwd for all of them together,
+   not one lsof call per process. The `p` field is required alongside `n`
+   even though only the cwd path is used downstream — without it there's no
+   way to map each returned cwd back to the pid it belongs to.
 3. One batched call: `ps -o pid=,etime=,comm= -p <pid1,pid2,...>` — uptime
    and command name for all of them together.
 
