@@ -59,6 +59,10 @@ function HeadingRow({ group, excluded }) {
   );
 }
 
+// A sub-row of a multi-port group (indent === true) only shows what
+// differs from its sibling ports (port, uptime) — process/pid/source
+// already appear once, on the HeadingRow above. A non-grouped, single-port
+// row (indent === false) shows every column, as before grouping existed.
 function ServiceRow({ service, selected, indent, excluded }) {
   const dim = excluded && !selected;
   const portText = (indent ? '  ' : '') + String(service.port);
@@ -66,9 +70,13 @@ function ServiceRow({ service, selected, indent, excluded }) {
     Box,
     null,
     h(Text, { inverse: selected, dimColor: dim }, pad(portText, 8)),
-    h(Text, { inverse: selected, dimColor: dim }, pad(service.process, 20)),
-    h(Text, { inverse: selected, dimColor: dim }, pad(String(service.pid), 8)),
-    h(Text, { inverse: selected, dimColor: dim }, padLeftTruncate(service.source, 44)),
+    h(Text, { inverse: selected, dimColor: dim }, indent ? pad('', 20) : pad(service.process, 20)),
+    h(Text, { inverse: selected, dimColor: dim }, indent ? pad('', 8) : pad(String(service.pid), 8)),
+    h(
+      Text,
+      { inverse: selected, dimColor: dim },
+      indent ? pad('', 44) : padLeftTruncate(service.source, 44)
+    ),
     h(Text, { inverse: selected, dimColor: dim }, service.uptime)
   );
 }
@@ -94,22 +102,13 @@ export function App() {
     }))
   );
 
+  // Loads the persisted exclude list before the first poll tick runs, so a
+  // previously-excluded process never renders un-filtered for a frame while
+  // collectServices() (a subprocess spawn) and loadExcludes() (a small file
+  // read) race independently.
   React.useEffect(() => {
     let cancelled = false;
-    loadExcludes()
-      .then((loaded) => {
-        if (!cancelled) setExcludes(loaded);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  React.useEffect(() => {
-    let cancelled = false;
+    let interval;
 
     async function tick() {
       try {
@@ -122,11 +121,20 @@ export function App() {
       }
     }
 
-    tick();
-    const interval = setInterval(tick, POLL_INTERVAL_MS);
+    loadExcludes()
+      .then((loaded) => {
+        if (cancelled) return;
+        setExcludes(loaded);
+        tick();
+        interval = setInterval(tick, POLL_INTERVAL_MS);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      });
+
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, []);
 
