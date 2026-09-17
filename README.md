@@ -14,12 +14,21 @@ straight from the list.
 
 ## Install
 
+Via Homebrew:
+
+```bash
+brew tap kaiyou-digital/tap
+brew install portwatch
+```
+
+Or from source:
+
 ```bash
 npm install
 npm link
 ```
 
-This puts `portwatch` on your `PATH`.
+Either way, this puts `portwatch` on your `PATH`.
 
 ## Run
 
