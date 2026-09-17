@@ -36,8 +36,8 @@ function HeaderRow() {
   return h(
     Box,
     null,
-    h(Text, { bold: true }, pad('PORT', 8)),
     h(Text, { bold: true }, pad('PROCESS', 20)),
+    h(Text, { bold: true }, pad('PORT', 8)),
     h(Text, { bold: true }, pad('PID', 8)),
     h(Text, { bold: true }, pad('SOURCE', 44)),
     h(Text, { bold: true }, 'UPTIME')
@@ -51,8 +51,8 @@ function HeadingRow({ group, excluded }) {
   return h(
     Box,
     null,
-    h(Text, { bold: true, dimColor: excluded }, pad('', 8)),
     h(Text, { bold: true, dimColor: excluded }, pad(group.process, 20)),
+    h(Text, { bold: true, dimColor: excluded }, pad('', 8)),
     h(Text, { bold: true, dimColor: excluded }, pad(String(group.pid), 8)),
     h(Text, { bold: true, dimColor: excluded }, padLeftTruncate(group.source, 44)),
     h(Text, { bold: true, dimColor: excluded }, excluded ? '(excluded)' : '')
@@ -61,16 +61,17 @@ function HeadingRow({ group, excluded }) {
 
 // A sub-row of a multi-port group (indent === true) only shows what
 // differs from its sibling ports (port, uptime) — process/pid/source
-// already appear once, on the HeadingRow above. A non-grouped, single-port
-// row (indent === false) shows every column, as before grouping existed.
+// already appear once, on the HeadingRow above. Leaving PROCESS blank (the
+// first column) is what gives sub-rows their nested look under the heading.
+// A non-grouped, single-port row (indent === false) shows every column, as
+// before grouping existed.
 function ServiceRow({ service, selected, indent, excluded }) {
   const dim = excluded && !selected;
-  const portText = (indent ? '  ' : '') + String(service.port);
   return h(
     Box,
     null,
-    h(Text, { inverse: selected, dimColor: dim }, pad(portText, 8)),
     h(Text, { inverse: selected, dimColor: dim }, indent ? pad('', 20) : pad(service.process, 20)),
+    h(Text, { inverse: selected, dimColor: dim }, pad(String(service.port), 8)),
     h(Text, { inverse: selected, dimColor: dim }, indent ? pad('', 8) : pad(String(service.pid), 8)),
     h(
       Text,
