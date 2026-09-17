@@ -19,6 +19,17 @@ function pad(str, width) {
   return str + ' '.repeat(width - str.length);
 }
 
+// The SOURCE column holds filesystem paths, where the distinguishing part
+// (e.g. the project directory name) is at the end, not the start. Truncating
+// from the tail (like pad() does) can cut that off and even render two
+// different deep paths identically if they share a long common prefix. This
+// truncates from the front instead, keeping the tail, with a leading ellipsis
+// to signal it's cut.
+function padLeftTruncate(str, width) {
+  if (str.length >= width) return '…' + str.slice(-(width - 2)) + ' ';
+  return str + ' '.repeat(width - str.length);
+}
+
 function HeaderRow() {
   return h(
     Box,
@@ -38,7 +49,7 @@ function ServiceRow({ service, selected }) {
     h(Text, { inverse: selected }, pad(String(service.port), 8)),
     h(Text, { inverse: selected }, pad(service.process, 20)),
     h(Text, { inverse: selected }, pad(String(service.pid), 8)),
-    h(Text, { inverse: selected }, pad(service.source, 44)),
+    h(Text, { inverse: selected }, padLeftTruncate(service.source, 44)),
     h(Text, { inverse: selected }, service.uptime)
   );
 }
@@ -81,7 +92,10 @@ export function App() {
     if (confirmingKey !== null) {
       if (input === 'y') {
         const service = services.find((s) => rowKey(s) === confirmingKey);
-        if (service) killService(service.pid);
+        if (service) {
+          const result = killService(service.pid);
+          if (!result.ok) setError(`Kill failed: ${result.error.message}`);
+        }
       }
       setConfirmingKey(null);
       return;
