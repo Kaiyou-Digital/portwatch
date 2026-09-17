@@ -1,0 +1,20 @@
+{
+  "name": "portwatch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local TUI dashboard for listening services, built with Ink",
+  "bin": {
+    "portwatch": "./bin/portwatch.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ink": "^7.1.1",
+    "react": "^19.2.0"
+  }
+}
