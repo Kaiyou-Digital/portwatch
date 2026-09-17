@@ -55,3 +55,7 @@ npm test
 Runs Node's built-in test runner over the parsers, filters, kill helper,
 and service collector — all against fixture output or an injected fake
 exec function. No automated test shells out to a real process.
+
+## License
+
+MIT © 2026 Andy Bennett — see [LICENSE](LICENSE).

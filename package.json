@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "description": "Local TUI dashboard for listening services, built with Ink",
+  "license": "MIT",
+  "author": "Andy Bennett",
   "bin": {
     "portwatch": "./bin/portwatch.js"
   },
