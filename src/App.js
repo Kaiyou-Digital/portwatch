@@ -2,6 +2,8 @@ import React from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import { collectServices } from './collectServices.js';
 import { killService } from './killService.js';
+import { groupServices } from './groupServices.js';
+import { loadExcludes, saveExcludes } from './excludeStore.js';
 import { POLL_INTERVAL_MS } from './constants.js';
 
 const h = React.createElement;
@@ -42,15 +44,32 @@ function HeaderRow() {
   );
 }
 
-function ServiceRow({ service, selected }) {
+// Shown once above a multi-port process's rows, carrying the info that's
+// common to all of them (process name, pid, source) so the rows underneath
+// only need to show what differs (port, uptime).
+function HeadingRow({ group, excluded }) {
   return h(
     Box,
     null,
-    h(Text, { inverse: selected }, pad(String(service.port), 8)),
-    h(Text, { inverse: selected }, pad(service.process, 20)),
-    h(Text, { inverse: selected }, pad(String(service.pid), 8)),
-    h(Text, { inverse: selected }, padLeftTruncate(service.source, 44)),
-    h(Text, { inverse: selected }, service.uptime)
+    h(Text, { bold: true, dimColor: excluded }, pad('', 8)),
+    h(Text, { bold: true, dimColor: excluded }, pad(group.process, 20)),
+    h(Text, { bold: true, dimColor: excluded }, pad(String(group.pid), 8)),
+    h(Text, { bold: true, dimColor: excluded }, padLeftTruncate(group.source, 44)),
+    h(Text, { bold: true, dimColor: excluded }, excluded ? '(excluded)' : '')
+  );
+}
+
+function ServiceRow({ service, selected, indent, excluded }) {
+  const dim = excluded && !selected;
+  const portText = (indent ? '  ' : '') + String(service.port);
+  return h(
+    Box,
+    null,
+    h(Text, { inverse: selected, dimColor: dim }, pad(portText, 8)),
+    h(Text, { inverse: selected, dimColor: dim }, pad(service.process, 20)),
+    h(Text, { inverse: selected, dimColor: dim }, pad(String(service.pid), 8)),
+    h(Text, { inverse: selected, dimColor: dim }, padLeftTruncate(service.source, 44)),
+    h(Text, { inverse: selected, dimColor: dim }, service.uptime)
   );
 }
 
@@ -60,6 +79,34 @@ export function App() {
   const [error, setError] = React.useState(null);
   const [selectedKey, setSelectedKey] = React.useState(null);
   const [confirmingKey, setConfirmingKey] = React.useState(null);
+  const [excludes, setExcludes] = React.useState(new Set());
+  const [showAll, setShowAll] = React.useState(false);
+
+  const visibleServices = showAll ? services : services.filter((s) => !excludes.has(s.process));
+  const groups = groupServices(visibleServices);
+  const flatRows = groups.flatMap((group) =>
+    group.ports.map((p) => ({
+      pid: group.pid,
+      process: group.process,
+      source: group.source,
+      port: p.port,
+      uptime: p.uptime,
+    }))
+  );
+
+  React.useEffect(() => {
+    let cancelled = false;
+    loadExcludes()
+      .then((loaded) => {
+        if (!cancelled) setExcludes(loaded);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -70,11 +117,6 @@ export function App() {
         if (cancelled) return;
         setServices(result);
         setError(null);
-        setSelectedKey((current) => {
-          if (result.length === 0) return null;
-          if (current !== null && result.some((s) => rowKey(s) === current)) return current;
-          return rowKey(result[0]);
-        });
       } catch (err) {
         if (!cancelled) setError(err.message);
       }
@@ -88,10 +130,23 @@ export function App() {
     };
   }, []);
 
+  // Keeps the highlighted row valid whenever the visible row set changes —
+  // a poll tick, an exclude/un-exclude, or toggling showAll can all make
+  // the previously-selected row disappear (or, for the first render,
+  // populate the list for the first time).
+  React.useEffect(() => {
+    setSelectedKey((current) => {
+      if (flatRows.length === 0) return null;
+      if (current !== null && flatRows.some((s) => rowKey(s) === current)) return current;
+      return rowKey(flatRows[0]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services, excludes, showAll]);
+
   useInput((input, key) => {
     if (confirmingKey !== null) {
       if (input === 'y') {
-        const service = services.find((s) => rowKey(s) === confirmingKey);
+        const service = flatRows.find((s) => rowKey(s) === confirmingKey);
         if (service) {
           const result = killService(service.pid);
           if (!result.ok) setError(`Kill failed: ${result.error.message}`);
@@ -106,35 +161,80 @@ export function App() {
       return;
     }
 
-    if (services.length === 0) return;
-    const index = services.findIndex((s) => rowKey(s) === selectedKey);
+    if (input === 'a') {
+      setShowAll((current) => !current);
+      return;
+    }
+
+    if (flatRows.length === 0) return;
+    const index = flatRows.findIndex((s) => rowKey(s) === selectedKey);
 
     if (input === 'j' || key.downArrow) {
-      const next = services[(index + 1 + services.length) % services.length];
+      const next = flatRows[(index + 1 + flatRows.length) % flatRows.length];
       setSelectedKey(rowKey(next));
       return;
     }
 
     if (input === 'k' || key.upArrow) {
-      const prev = services[(index - 1 + services.length) % services.length];
+      const prev = flatRows[(index - 1 + flatRows.length) % flatRows.length];
       setSelectedKey(rowKey(prev));
       return;
     }
 
     if (input === 'x' && selectedKey !== null) {
       setConfirmingKey(selectedKey);
+      return;
+    }
+
+    if (input === 'e' && selectedKey !== null) {
+      const service = flatRows.find((s) => rowKey(s) === selectedKey);
+      if (service) {
+        const next = new Set(excludes);
+        if (next.has(service.process)) next.delete(service.process);
+        else next.add(service.process);
+        setExcludes(next);
+        saveExcludes(next).catch((err) => setError(`Failed to save exclude list: ${err.message}`));
+      }
     }
   });
 
-  const confirmingService = services.find((s) => rowKey(s) === confirmingKey);
+  const confirmingService = flatRows.find((s) => rowKey(s) === confirmingKey);
+
+  const footerHint =
+    'j/k or arrows: move   x: kill   e: exclude   a: show all   q: quit' +
+    (showAll ? '  [showing excluded]' : '');
 
   return h(
     Box,
     { flexDirection: 'column' },
     h(HeaderRow),
-    ...services.map((service) =>
-      h(ServiceRow, { key: rowKey(service), service, selected: rowKey(service) === selectedKey })
-    ),
+    ...groups.flatMap((group) => {
+      const isMultiPort = group.ports.length > 1;
+      const groupExcluded = excludes.has(group.process);
+      const rows = [];
+      if (isMultiPort) {
+        rows.push(h(HeadingRow, { key: `heading-${group.pid}`, group, excluded: groupExcluded }));
+      }
+      for (const p of group.ports) {
+        const service = {
+          pid: group.pid,
+          process: group.process,
+          source: group.source,
+          port: p.port,
+          uptime: p.uptime,
+        };
+        rows.push(
+          h(ServiceRow, {
+            key: rowKey(service),
+            service,
+            selected: rowKey(service) === selectedKey,
+            indent: isMultiPort,
+            excluded: groupExcluded,
+          })
+        );
+      }
+      return rows;
+    }),
     error ? h(Text, { color: 'red' }, `Error: ${error}`) : null,
     confirmingKey !== null && confirmingService
       ? h(
@@ -142,6 +242,6 @@ export function App() {
           { color: 'yellow' },
           `Kill ${confirmingService.process} (PID ${confirmingService.pid})? y/n`
         )
-      : h(Text, { dimColor: true }, 'j/k or arrows: move   x: kill   q: quit')
+      : h(Text, { dimColor: true }, footerHint)
   );
 }

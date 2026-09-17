@@ -29,12 +29,22 @@ portwatch
 
 - `j`/`k` or arrow keys — move the selection
 - `x` — kill the selected process (asks for `y`/`n` confirmation, sends `SIGTERM`)
+- `e` — exclude (or un-exclude) the selected row's process, by name, from the list — persisted, so it stays excluded on future runs
+- `a` — toggle showing excluded processes (dimmed, tagged `(excluded)`), so you can find one to un-exclude
 - `q` / `Ctrl+C` — quit
 
 The list auto-refreshes every 2 seconds. Ports below 1024 and a small list
 of common macOS system daemons (see `src/constants.js`) are filtered out
-to keep the list focused on dev services — tune that list there if it's
-missing something on your machine.
+unconditionally (not affected by `a`) to keep the list focused on dev
+services — tune that list there if it's missing something on your machine.
+
+A process holding more than one listening port (common — Dropbox, LM Studio,
+Figma's desktop helper, and others often do) renders as one heading with its
+ports as indented rows underneath, rather than as separate unrelated-looking
+entries. Excluding via `e` applies to the whole process, not just one port.
+
+Your own exclusions (via `e`) are stored separately from the hardcoded list
+above, in `~/.config/portwatch/excludes.json`.
 
 ## Testing
 
