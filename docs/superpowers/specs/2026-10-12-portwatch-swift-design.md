@@ -1,7 +1,7 @@
 # portwatch Swift rewrite: design spec
 
 Date: 2026-10-12
-Status: draft, supersedes the Node/Ink implementation in `2026-09-17-portwatch-design.md` once parity is reached
+Status: implemented on branch `swift-rewrite` (not yet released); supersedes the Node/Ink implementation in `2026-09-17-portwatch-design.md` once parity is reached
 
 ## Summary
 
@@ -128,3 +128,26 @@ Each of these is currently an assumption, not a checked fact:
 - `swift test` passes; formatting and lint gates pass.
 - `brew install portwatch` from the tap installs the Swift binary without installing Node.
 - Idle memory and per-tick CPU are measured and recorded in the README against the Node build.
+
+## Verification results (2026-10-12)
+
+Run on arm64, macOS 27, Swift 6.4. Items refer to "Verify before building".
+
+1. **libproc calls.** Confirmed. `proc_listpids`, `PROC_PIDLISTFDS`, `PROC_PIDFDSOCKETINFO`, `PROC_PIDVNODEPATHINFO` and `PROC_PIDTBSDINFO` return what the spec describes; the port is in network byte order and the LISTEN state matches `TSI_S_LISTEN`.
+2. **Process name.** Use `proc_name`. It returned the full 17-character `identityservicesd`, matching `lsof -F c`; `pbi_comm` truncated it to 16.
+3. **Visible process set.** Unprivileged libproc and unprivileged `lsof` reported the same 7 (pid, port) pairs, all owned by the current user.
+4. **Per-tick cost.** Not measured per tick. Over 30 idle seconds the process used 0.06 s of CPU and 6.8 MB resident, against 0.43 s and 41.4 MB for the Node build (Node process only).
+5. **Inline vs alternate screen.** Not checked against Ink. The Swift version uses the alternate screen.
+6. **Swift 6 concurrency.** `MainActor.assumeIsolated` inside dispatch source handlers aborted at runtime (the main-actor assertion failed on a timer handler), and a closure in a main-actor method ran on a global queue. Both are fixed by hopping explicitly: `Task { @MainActor in ... }` in handlers and `Task.detached` for the process-table walk.
+
+### Parity
+
+Rendered screens from the Swift and Node builds, run side by side in a pseudo-terminal, were identical apart from uptime values. The exclude, un-exclude and kill (cancel, then confirm) flows were driven against a throwaway listener with `HOME` redirected to a temp directory.
+
+### Decisions taken during the build
+
+- Alternate screen (open question 5 above); revisit if inline output is preferred.
+- Minimum macOS 13; arm64 only so far.
+- An unreadable `excludes.json` shows an error and polling continues with no exclusions. The Node version stopped polling.
+- `ExcludeStore` honours `$HOME` before the account home directory, as `os.homedir()` did.
+- Rows tie-break on pid when ports are equal, so ordering is deterministic.
