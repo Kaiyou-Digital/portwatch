@@ -1,0 +1,27 @@
+name: Swift CI
+
+# Manual-only, as a clean-machine check; the same gates run locally in
+# Scripts/pre-push.sh.
+on:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SwiftFormat and SwiftLint
+        run: brew install swiftformat swiftlint
+      - name: Check formatting (dry run)
+        run: swiftformat Sources Tests --lint
+      - name: Lint (warnings fail the build)
+        run: swiftlint lint --strict
+
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test (debug)
+        run: swift test
+      - name: Test (release)
+        run: swift test -c release -Xswiftc -enable-testing

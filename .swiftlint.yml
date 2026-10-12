@@ -1,0 +1,16 @@
+included:
+  - Sources
+  - Tests
+
+disabled_rules:
+  # SwiftFormat adds trailing commas to multi-line collections; this rule
+  # demands the opposite. Let the formatter own it.
+  - trailing_comma
+  # Fires on String(decoding:as:) for process names and paths. Decoding
+  # leniently is deliberate: invalid UTF-8 in a name should show as U+FFFD,
+  # not make the row vanish, which is what a failable conversion would do.
+  - optional_data_string_conversion
+
+identifier_name:
+  # `fd` and `up` are the idiomatic names (file descriptor, arrow key).
+  min_length: 1

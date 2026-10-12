@@ -2,6 +2,8 @@
 
 Date: 2026-09-17
 
+> **Superseded** by [2026-10-12-portwatch-swift-design.md](2026-10-12-portwatch-swift-design.md). The Node/Ink implementation described here was replaced by a Swift binary in v0.2.0; it remains available in git history at v0.1.1.
+
 ## Purpose
 
 A local TUI dashboard, built with Ink (React for CLIs), that lists every
