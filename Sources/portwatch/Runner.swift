@@ -11,6 +11,7 @@ final class Runner {
     private let source: ProcessSource
     private let excludeStore: ExcludeStore
     private var collecting = false
+    private var decoder = KeyDecoder()
     private var lastFrame = ""
     private var retained: [any DispatchSourceProtocol] = []
 
@@ -90,8 +91,9 @@ final class Runner {
             quit()
         } // stdin closed
         guard count > 0 else { return }
-        for key in KeyDecoder.decode(Array(buffer.prefix(count))) {
-            handle(.key(key))
+        let keys = decoder.decode(Array(buffer.prefix(count)))
+        if !keys.isEmpty {
+            handle(.input(keys))
         }
     }
 

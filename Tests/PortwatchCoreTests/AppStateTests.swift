@@ -130,4 +130,66 @@ struct AppStateTests {
         _ = state.apply(.excludesLoadFailed("bad json"))
         #expect(state.error == "Failed to read exclude list: bad json")
     }
+
+    // MARK: bursts of input (a paste, or anything that is not a human keypress)
+
+    @Test func xThenYInOneReadDoesNotKill() {
+        var state = loaded(three)
+        let effects = state.apply(.input([.char("x"), .char("y")]))
+        #expect(effects.isEmpty)
+        #expect(state.confirmingKey == nil)
+    }
+
+    @Test func pastingProxyDoesNotKill() {
+        var state = loaded(three)
+        let effects = state.apply(.input("proxy".map { .char($0) }))
+        #expect(effects.isEmpty)
+        #expect(state.confirmingKey == nil)
+    }
+
+    @Test func xAndYInSeparateReadsStillKill() {
+        var state = loaded(three)
+        #expect(state.apply(.input([.char("x")])).isEmpty)
+        #expect(state.confirmingKey == "1:3000")
+        #expect(state.apply(.input([.char("y")])) == [.kill(pid: 1)])
+    }
+
+    @Test func aBurstCannotToggleExclusionsOrShowAll() {
+        var state = loaded(three)
+        let before = state
+        let effects = state.apply(.input("the quick brown fox jumps over a lazy dog".map { .char($0) }))
+        #expect(!effects.contains {
+            if case .saveExcludes = $0 {
+                true
+            } else {
+                false
+            }
+        })
+        #expect(state.excludes == before.excludes)
+        #expect(state.showAll == before.showAll)
+        #expect(state.confirmingKey == nil)
+    }
+
+    @Test func aBurstCannotQuitExceptWithCtrlC() {
+        var state = loaded(three)
+        #expect(state.apply(.input([.char("q"), .char("q")])).isEmpty)
+        #expect(state.apply(.input([.char("j"), .ctrlC])) == [.quit])
+    }
+
+    @Test func holdingANavigationKeyStillWorksWhenSeveralRepeatsArriveTogether() {
+        var state = loaded(three)
+        _ = state.apply(.input([.char("j"), .char("j")]))
+        #expect(state.selectedKey == "3:5000")
+        _ = state.apply(.input([.up, .up, .char("k")]))
+        #expect(state.selectedKey == "3:5000") // wrapped: 3 -> 2 -> 1 -> 3
+    }
+
+    @Test func aSingleKeyInputBehavesExactlyLikeAKeyEvent() {
+        var viaInput = loaded(three)
+        var viaKey = loaded(three)
+        for key: Key in [.char("j"), .char("e"), .char("a"), .char("x"), .char("n"), .char("q")] {
+            #expect(viaInput.apply(.input([key])) == viaKey.apply(.key(key)))
+            #expect(viaInput == viaKey)
+        }
+    }
 }

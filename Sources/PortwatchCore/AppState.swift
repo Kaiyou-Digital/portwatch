@@ -13,6 +13,8 @@ public enum Event: Equatable, Sendable {
     case killFailed(String)
     case saveFailed(String)
     case key(Key)
+    /// Everything decoded from one read of the terminal.
+    case input([Key])
 }
 
 /// Work the runner must do on the reducer's behalf. The reducer itself does no I/O.
@@ -68,8 +70,21 @@ public struct AppState: Equatable, Sendable {
             error = "Failed to save exclude list: \(message)"
         case let .key(key):
             return handle(key)
+        case let .input(keys):
+            // A human delivers one key per read. Several arriving together is a paste
+            // (or something else that is not a person typing), so only navigation and
+            // Ctrl+C get through: pasted text must never kill, exclude or toggle.
+            let allowed = keys.count > 1 ? keys.filter(Self.survivesABurst) : keys
+            return allowed.flatMap { handle($0) }
         }
         return []
+    }
+
+    private static func survivesABurst(_ key: Key) -> Bool {
+        switch key {
+        case .up, .down, .ctrlC, .char("j"), .char("k"): true
+        default: false
+        }
     }
 
     /// Keeps the highlighted row valid whenever the visible row set changes: a
