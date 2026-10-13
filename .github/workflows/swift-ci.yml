@@ -25,3 +25,7 @@ jobs:
         run: swift test
       - name: Test (release)
         run: swift test -c release -Xswiftc -enable-testing
+      - name: Smoke test (release binary in a pty)
+        run: |
+          swift build -c release
+          python3 Scripts/smoke.py .build/release/portwatch
