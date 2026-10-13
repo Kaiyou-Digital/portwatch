@@ -34,4 +34,19 @@ struct CollectorTests {
         struct Boom: Error {}
         #expect(throws: Boom.self) { try collectServices(from: FakeSource(error: Boom()), now: now) }
     }
+
+    @Test func scrubsHostileProcessNamesAndDirectoriesFromOtherProcesses() throws {
+        let source = FakeSource(services: [
+            raw(1, "evil\u{1B}]0;PWNED\u{07}", port: 4000, cwd: "/work/proj\u{1B}[31m\r\nfake"),
+        ])
+        let result = try collectServices(from: source, now: now)
+        #expect(result.count == 1)
+        #expect(result[0].process == "evil\u{FFFD}]0;PWNED\u{FFFD}")
+        #expect(result[0].source == "/work/proj\u{FFFD}[31m\u{FFFD}\u{FFFD}fake")
+    }
+
+    @Test func systemDaemonFilteringStillUsesTheRealName() throws {
+        let source = FakeSource(services: [raw(1, "rapportd", port: 5000), raw(2, "ok", port: 5001)])
+        #expect(try collectServices(from: source, now: now).map(\.process) == ["ok"])
+    }
 }

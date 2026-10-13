@@ -99,4 +99,27 @@ struct RenderTests {
         #expect(line.ansi(width: 7) == "\u{1B}[1mhello\u{1B}[0m w")
         #expect(line.ansi(width: 0) == "")
     }
+
+    @Test func cellsNeverHoldControlCharacters() {
+        let cell = Cell("a\u{1B}[2Jb\u{07}")
+        #expect(cell.text == "a\u{FFFD}[2Jb\u{FFFD}")
+    }
+
+    @Test func aHostileServiceNeverEmitsAnEscapeOtherThanOurOwnStyling() {
+        var hostile = AppState()
+        _ = hostile.apply(.tickSucceeded([
+            service(7, "bad\u{1B}]0;PWNED\u{07}", port: 3000, source: "/x\u{1B}[2J\r\n\u{9B}H", uptime: "01:00"),
+        ]))
+        _ = hostile.apply(.tickFailed("err\u{1B}[31m"))
+        _ = hostile.apply(.key(.char("x")))
+        let rendered = Renderer.lines(for: hostile, height: 30).map { $0.ansi(width: 140) }.joined(separator: "\n")
+        // Strip our own SGR styling (ESC [ digits/semicolons m), then nothing control-like may remain.
+        let withoutOurStyling = rendered.replacingOccurrences(
+            of: "\u{1B}\\[[0-9;]*m", with: "", options: .regularExpression
+        )
+        let leftovers = withoutOurStyling.unicodeScalars.filter {
+            ($0.value < 0x20 && $0 != "\n") || $0.value == 0x7F || (0x80 ... 0x9F).contains($0.value)
+        }
+        #expect(leftovers.isEmpty)
+    }
 }

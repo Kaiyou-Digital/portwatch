@@ -16,9 +16,9 @@ public func collectServices(from source: ProcessSource, now: Date = Date()) thro
         .map {
             Service(
                 pid: $0.pid,
-                process: $0.name,
+                process: Sanitize.displayText($0.name),
                 port: $0.port,
-                source: $0.cwd,
+                source: Sanitize.displayText($0.cwd),
                 uptime: Uptime.format(since: $0.startTime, now: now)
             )
         }
