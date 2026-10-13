@@ -34,11 +34,12 @@ public struct Style: Equatable, Sendable {
 }
 
 public struct Cell: Equatable, Sendable {
-    public var text: String
+    /// Always scrubbed: nothing can reach the terminal through a cell with a control character in it.
+    public private(set) var text: String
     public var style: Style
 
     public init(_ text: String, _ style: Style = Style()) {
-        self.text = text
+        self.text = Sanitize.displayText(text)
         self.style = style
     }
 }

@@ -6,8 +6,9 @@ import Darwin
 private nonisolated(unsafe) var originalTermios = termios()
 private nonisolated(unsafe) var terminalIsRaw = false
 
-private let enterSequence = "\u{1B}[?1049h\u{1B}[?25l"
-private let leaveSequence = "\u{1B}[?25h\u{1B}[?1049l"
+// Bracketed paste (2004) makes the terminal wrap pasted text in markers so it can be told apart from typing.
+private let enterSequence = "\u{1B}[?1049h\u{1B}[?25l\u{1B}[?2004h"
+private let leaveSequence = "\u{1B}[?2004l\u{1B}[?25h\u{1B}[?1049l"
 
 /// Best-effort and safe to call from a signal handler (only tcsetattr and write).
 func restoreTerminal() {
