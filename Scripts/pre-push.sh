@@ -59,4 +59,8 @@ swift test --quiet
 echo "pre-push: tests (release)..."
 swift test -c release --quiet -Xswiftc -enable-testing
 
+echo "pre-push: smoke test (release binary in a pty)..."
+swift build -c release --quiet
+python3 -I Scripts/smoke.py .build/release/portwatch
+
 echo "pre-push: passed."

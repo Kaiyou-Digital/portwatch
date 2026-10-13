@@ -20,6 +20,12 @@ final class Runner {
         self.excludeStore = excludeStore
     }
 
+    /// Dispatch handlers are marked @Sendable on purpose. Written inside this
+    /// @MainActor method they would be inferred main-actor-isolated, and the
+    /// runtime then checks isolation on entry and prints "data race detected"
+    /// over the TUI, because Dispatch does not call them in a way it recognises
+    /// as the main actor. Non-isolated handlers that hop with Task { @MainActor }
+    /// have no such check.
     func run() -> Never {
         enterRawMode()
 
@@ -29,17 +35,17 @@ final class Runner {
 
         let timer = DispatchSource.makeTimerSource(queue: .main)
         timer.schedule(deadline: .now() + .seconds(2), repeating: .seconds(2))
-        timer.setEventHandler { Task { @MainActor in self.tick() } }
+        timer.setEventHandler { @Sendable in Task { @MainActor in self.tick() } }
         retain(timer)
 
         let input = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO, queue: .main)
-        input.setEventHandler { Task { @MainActor in self.readInput() } }
+        input.setEventHandler { @Sendable in Task { @MainActor in self.readInput() } }
         retain(input)
 
         for number in [SIGWINCH, SIGINT, SIGTERM, SIGHUP] {
             signal(number, SIG_IGN)
             let handler = DispatchSource.makeSignalSource(signal: number, queue: .main)
-            handler.setEventHandler {
+            handler.setEventHandler { @Sendable in
                 Task { @MainActor in
                     if number == SIGWINCH {
                         self.draw(force: true)
