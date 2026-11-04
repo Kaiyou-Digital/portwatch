@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-let version = "0.2.1"
+let version = "0.3.0"
 
 if CommandLine.arguments.contains("--version") {
     print(version)
