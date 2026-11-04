@@ -125,7 +125,8 @@ final class Runner {
 
     private func draw(force: Bool = false) {
         let size = terminalSize()
-        let lines = Renderer.lines(for: state, height: size.height).map { $0.ansi(width: size.width) }
+        let lines = Renderer.lines(for: state, height: size.height, width: size.width)
+            .map { $0.ansi(width: size.width) }
         let frame = lines.joined(separator: "\u{1B}[K\r\n") + "\u{1B}[K\u{1B}[J"
         if !force, frame == lastFrame {
             return

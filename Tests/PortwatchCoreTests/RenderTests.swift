@@ -36,6 +36,17 @@ struct RenderTests {
         #expect(lines[1] == "Helm                8927    8927    /x                                          02:09:38")
     }
 
+    @Test func sourceGrowsToFillWidthAndRepeatedNamesAreDimmed() {
+        let s = state([
+            service(1, "node", port: 3000, source: "/a", uptime: "01:00"),
+            service(2, "node", port: 3001, source: "/b", uptime: "01:00"),
+        ])
+        let lines = Renderer.lines(for: s, height: 30, width: 200)
+        #expect(lines[0].plainText.count == 20 + 8 + 8 + (200 - 36 - 12) + "UPTIME".count)
+        #expect(lines[1].cells[0].style.dim == false)
+        #expect(lines[2].cells[0].style.dim == true)
+    }
+
     @Test func multiPortProcessGetsAHeadingAndIndentedRows() {
         let lines = plain(state([
             service(7, "mysqld", port: 3306, source: "/db", uptime: "05:00"),

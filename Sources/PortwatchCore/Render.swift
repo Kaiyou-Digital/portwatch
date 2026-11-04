@@ -91,52 +91,67 @@ public enum Renderer {
         return text + String(repeating: " ", count: width - text.count)
     }
 
-    static var headerLine: StyledLine {
+    /// SOURCE takes whatever width is left after the other columns (uptime
+    /// reserves 12), never less than the default.
+    static func sourceWidth(for width: Int?) -> Int {
+        guard let width else { return columnWidths.source }
+        let fixed = columnWidths.process + columnWidths.port + columnWidths.pid + 12
+        return max(columnWidths.source, width - fixed)
+    }
+
+    static func headerLine(sourceWidth: Int) -> StyledLine {
         let bold = Style(bold: true)
         return StyledLine([
             Cell(pad("PROCESS", columnWidths.process), bold),
             Cell(pad("PORT", columnWidths.port), bold),
             Cell(pad("PID", columnWidths.pid), bold),
-            Cell(pad("SOURCE", columnWidths.source), bold),
+            Cell(pad("SOURCE", sourceWidth), bold),
             Cell("UPTIME", bold),
         ])
     }
 
     /// Shown once above a multi-port process's rows, carrying what's common to
     /// all of them (name, pid, source).
-    static func headingLine(_ group: Group, excluded: Bool) -> StyledLine {
+    static func headingLine(_ group: Group, excluded: Bool, sourceWidth: Int) -> StyledLine {
         let style = Style(bold: true, dim: excluded)
         return StyledLine([
             Cell(pad(group.process, columnWidths.process), style),
             Cell(pad("", columnWidths.port), style),
             Cell(pad(String(group.pid), columnWidths.pid), style),
-            Cell(padLeftTruncate(group.source, columnWidths.source), style),
+            Cell(padLeftTruncate(group.source, sourceWidth), style),
             Cell(excluded ? "(excluded)" : "", style),
         ])
     }
 
     /// A sub-row of a multi-port group (`indent`) shows only what differs from
     /// its siblings (port, uptime); a single-port row shows every column.
-    static func serviceLine(_ service: Service, selected: Bool, indent: Bool, excluded: Bool) -> StyledLine {
+    /// `repeated` (same process name as the row above) dims the name so runs of
+    /// the same process read as one block.
+    static func serviceLine(
+        _ service: Service, selected: Bool, indent: Bool, excluded: Bool, sourceWidth: Int, repeated: Bool = false
+    ) -> StyledLine {
         let style = Style(dim: excluded && !selected, inverse: selected)
+        let nameStyle = Style(dim: (excluded || repeated) && !selected, inverse: selected)
         return StyledLine([
-            Cell(indent ? pad("", columnWidths.process) : pad(service.process, columnWidths.process), style),
+            Cell(indent ? pad("", columnWidths.process) : pad(service.process, columnWidths.process), nameStyle),
             Cell(pad(String(service.port), columnWidths.port), style),
             Cell(indent ? pad("", columnWidths.pid) : pad(String(service.pid), columnWidths.pid), style),
-            Cell(indent ? pad("", columnWidths.source) : padLeftTruncate(service.source, columnWidths.source), style),
+            Cell(indent ? pad("", sourceWidth) : padLeftTruncate(service.source, sourceWidth), style),
             Cell(service.uptime, style),
         ])
     }
 
     /// The whole frame: header, rows (scrolled to keep the selection visible
     /// when they don't fit), then an optional error line and the footer.
-    public static func lines(for state: AppState, height: Int) -> [StyledLine] {
+    public static func lines(for state: AppState, height: Int, width: Int? = nil) -> [StyledLine] {
+        let sourceWidth = sourceWidth(for: width)
+        var previousProcess: String?
         var body: [(line: StyledLine, selected: Bool)] = []
         for group in state.groups {
             let excluded = state.excludes.contains(group.process)
             let isMultiPort = group.ports.count > 1
             if isMultiPort {
-                body.append((headingLine(group, excluded: excluded), false))
+                body.append((headingLine(group, excluded: excluded, sourceWidth: sourceWidth), false))
             }
             for entry in group.ports {
                 let service = Service(
@@ -145,10 +160,14 @@ public enum Renderer {
                 )
                 let selected = service.key == state.selectedKey
                 body.append((
-                    serviceLine(service, selected: selected, indent: isMultiPort, excluded: excluded),
+                    serviceLine(
+                        service, selected: selected, indent: isMultiPort, excluded: excluded,
+                        sourceWidth: sourceWidth, repeated: !isMultiPort && group.process == previousProcess
+                    ),
                     selected
                 ))
             }
+            previousProcess = group.process
         }
 
         var footer: [StyledLine] = []
@@ -173,6 +192,6 @@ public enum Renderer {
             visible = Array(body[start ..< start + capacity])
         }
 
-        return [headerLine] + visible.map(\.line) + footer
+        return [headerLine(sourceWidth: sourceWidth)] + visible.map(\.line) + footer
     }
 }
