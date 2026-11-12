@@ -18,6 +18,19 @@ if [ ${#staged[@]} -eq 0 ]; then
   exit 0
 fi
 
+# Formatting re-adds whole files, so a partly staged file would have its unstaged hunks committed too.
+# Refuse rather than quietly commit work the author left out on purpose.
+partly_staged=()
+for file in "${staged[@]}"; do
+    git diff --quiet -- "$file" || partly_staged+=("$file")
+done
+if [ "${#partly_staged[@]}" -gt 0 ]; then
+    echo "pre-commit: these files have unstaged changes on top of the staged ones, and formatting would add them to the commit:" >&2
+    printf '  %s\n' "${partly_staged[@]}" >&2
+    echo "pre-commit: stage the whole file (git add <file>), or put the unstaged part aside first, then commit again." >&2
+    exit 1
+fi
+
 echo "pre-commit: formatting ${#staged[@]} staged Swift file(s)..."
 swiftformat --quiet "${staged[@]}"
 git add "${staged[@]}"
